@@ -1,4 +1,4 @@
-module github.com/gobeam/mongo-go-pagination
+module github.com/maedu/mongo-go-pagination
 
 go 1.13
 
