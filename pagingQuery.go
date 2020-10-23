@@ -2,6 +2,7 @@ package mongopagination
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,10 +22,9 @@ const (
 // and sort value
 type pagingQuery struct {
 	Collection  *mongo.Collection
-	SortField   string
+	SortValue   interface{}
 	Project     interface{}
 	FilterQuery interface{}
-	SortValue   int
 	LimitCount  int64
 	PageCount   int64
 }
@@ -51,7 +51,7 @@ type PagingQuery interface {
 	Filter(selector interface{}) PagingQuery
 	Limit(limit int64) PagingQuery
 	Page(page int64) PagingQuery
-	Sort(sortField string, sortValue int) PagingQuery
+	Sort(sort interface{}) PagingQuery
 }
 
 // New is to construct PagingQuery object with mongo.Database and collection name
@@ -94,9 +94,8 @@ func (paging *pagingQuery) Page(page int64) PagingQuery {
 }
 
 // Sort is to sor mongo result by certain key
-func (paging *pagingQuery) Sort(sortField string, sortValue int) PagingQuery {
-	paging.SortField = sortField
-	paging.SortValue = sortValue
+func (paging *pagingQuery) Sort(sort interface{}) PagingQuery {
+	paging.SortValue = sort
 	return paging
 }
 
@@ -129,8 +128,8 @@ func (paging *pagingQuery) Aggregate(filters ...interface{}) (paginatedData *Pag
 	var facetData []bson.M
 	facetData = append(facetData, bson.M{"$skip": skip})
 	facetData = append(facetData, bson.M{"$limit": paging.LimitCount})
-	if paging.SortField != "" {
-		facetData = append(facetData, bson.M{"$sort": bson.M{paging.SortField: paging.SortValue}})
+	if paging.SortValue != nil {
+		facetData = append(facetData, bson.M{"$sort": paging.SortValue})
 	}
 	// making facet aggregation pipeline for result and total document count
 	facet := bson.M{"$facet": bson.M{
@@ -198,8 +197,8 @@ func (paging *pagingQuery) Find() (paginatedData *PaginatedData, err error) {
 	if paging.Project != nil {
 		opt.SetProjection(paging.Project)
 	}
-	if paging.SortField != "" && paging.SortValue != 0 {
-		opt.SetSort(bson.D{{paging.SortField, paging.SortValue}})
+	if paging.SortValue != nil {
+		opt.SetSort(paging.SortValue)
 	}
 	cursor, err := paging.Collection.Find(context.Background(), paging.FilterQuery, opt)
 	if err != nil {
